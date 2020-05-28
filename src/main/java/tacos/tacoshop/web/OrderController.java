@@ -1,78 +1,44 @@
 package tacos.tacoshop.web;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.Errors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.support.SessionStatus;
 import tacos.tacoshop.Order;
-import tacos.tacoshop.User;
-import tacos.tacoshop.data.OrderRepository;
 
-import javax.validation.Valid;
-
-
-@Slf4j
-@Controller
-@RequestMapping("/orders")
-@SessionAttributes("order")
+@RequiredArgsConstructor
+@RequestMapping(path="/orders",
+        produces="application/json")
+@RestController
 public class OrderController {
 
-    private OrderRepository orderRepo;
-    private OrderProps orderProps;
+    private final OrderService orderService;
 
-    public OrderController(OrderRepository orderRepo, OrderProps orderProps) {
-        this.orderRepo = orderRepo;
-        this.orderProps = orderProps;
+    @GetMapping(produces="application/json")
+    public Iterable<Order> allOrders() {
+        return orderService.allOrders();
     }
 
-    @GetMapping("/current")
-    public String orderForm(@AuthenticationPrincipal User user, @ModelAttribute Order order){
-
-        if (order.getName() == null) {
-            order.setName(user.getFullname());
-        }
-        if (order.getStreet() == null) {
-            order.setStreet(user.getStreet());
-        }
-        if (order.getCity() == null) {
-            order.setCity(user.getCity());
-        }
-        if (order.getState() == null) {
-            order.setState(user.getState());
-        }
-        if (order.getZip() == null) {
-            order.setZip(user.getZip());
-        }
-//        model.addAttribute("order", new Order());
-        return "orderForm";
+    @PostMapping(consumes="application/json")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Order postOrder(@RequestBody Order order) {
+        return orderService.postOrder(order);
     }
 
-    @PostMapping
-    public String processOrder(@Valid Order order, Errors errors, SessionStatus sessionStatus,
-                               @AuthenticationPrincipal User user) {
-        if(errors.hasErrors()){
-            return "orderForm";
-        }
-
-        order.setUser(user);
-
-        orderRepo.save(order);
-        sessionStatus.setComplete();
-
-        log.info("Processing design: " + order);
-        return "redirect:/";
+    @PutMapping(path="/{orderId}", consumes="application/json")
+    public Order putOrder(@RequestBody Order order) {
+        return orderService.putOrder(order);
     }
 
-    @GetMapping
-    public String ordersForUser(@AuthenticationPrincipal User user, Model model){
-        Pageable pageable = PageRequest.of(0, orderProps.getPageSize());
-        model.addAttribute("orders",orderRepo.findByUserOrderByPlacedAtDesc(user));
-
-        return "orderList";
+    @PatchMapping(path="/{orderId}", consumes="application/json")
+    public Order patchOrder(@PathVariable("orderId") int orderId,
+                            @RequestBody Order patch) {
+        return orderService.patchOrder(orderId,patch);
     }
+
+    @DeleteMapping("/{orderId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOrder(@PathVariable("orderId") int orderId) {
+        orderService.deleteOrder(orderId);
+    }
+
 }
